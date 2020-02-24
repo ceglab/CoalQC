@@ -4,7 +4,7 @@
 <h2> Setting Up the Environment for running the wrapper and scripts. </h2>
 Follow these steps: 
   
-<pre><code> cd coalqc </pre></code>
+<pre><code> cd CoalQC/scripts </pre></code>
 
 <pre><code> pwd </pre></code>
 
