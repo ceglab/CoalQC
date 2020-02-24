@@ -11,8 +11,13 @@ Follow these steps:
 copy the path where all the scripts are present and use export path to "coalpath" to save in your working environment. i.e. path which you will obtain after executing pwd in your coalqc folder.
 
 <pre><code> export coalpath={paste the path here} </pre></code>
+<pre><code> chmod 777 * </pre></code>
 
-Now, you have setup the environment for the scripts, you can execute coalqc from anywhere on your computer.
+The pipeline has been setup, but you will have to invoke the program from it's location. 
+
+If you want you can also copy just the coalqc file from it's source folder to a destination such as /usr/local/bin, so that you can execute the program at any location on your computer.
+
+Now, you have setup the environment for the scripts, you can execute coalqc from anywhere on your computer. 
 
 <h2>Step 1: Preparing the bam alignment file.</h2>
 <p>Prior to assessing the quality of genomic regions for performing coalescent analysis, we need to prepare an alignment of the short read data against a reference genome in the bam format. While this can be done using a short-read alignment program of your choice, we recommend using the coalmap command that uses the bwa read mapper to perform the read mapping. The following programs need to be installed and present in the PATH: bwa, samtools</p>
