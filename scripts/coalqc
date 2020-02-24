@@ -1,0 +1,44 @@
+#!/bin/bash
+a=$1
+coalpath=$coalpath
+if [ "$a" = "repeat" ]
+then
+ shift
+echo "Now, invoking Repeat module"
+$coalpath/coalrep $@
+elif [ "$a" = "map" ]
+then
+ shift
+echo "Now, invoking single mapping module"
+$coalpath/coalmap $@
+elif [ "$a" = "multipmap" ]
+then
+ shift
+echo "Now, invoking multiple mapping module"
+$coalpath/coalmapmulti $@
+elif [ "$a" = "cov" ]
+then
+ shift
+echo "Now, invoking Coverage module"
+$coalpath/coalcov $@
+elif [ "$a" = "call" ]
+then
+ shift
+echo "Now, invoking Callability module"
+$coalpath/coalcall $@
+elif [ "$a" = "psuedo" ]
+then
+ shift
+echo "Now, invoking Coverage module"
+$coalpath/coalpsuedo $@
+else
+echo "Invalid parameter input. Please provide correct parameter"
+echo "Usage:   COALqc <command> <arguments>"
+echo "Version: 0.1"
+echo "Command: map	Mapping fastq reads to genome by making both masked and unmasked ones"
+echo "Command: multimap	Mapping many fastq reads to multiple genome by making both masked and unmasked ones"
+echo "Command: repeat	Quality control of repeat content in coalesence inferrrence"
+echo "Command: cov	Quality control of coverage classes in coalesence inferrrence"
+echo "Command: call	Quality control of callability classes in coalesence inferrrence"
+echo "Command: psuedo Make psudo diploids of related organisms and perform PSMC"
+fi

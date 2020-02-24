@@ -1,0 +1,117 @@
+#!/bin/bash
+helpFunction()
+{
+   echo ""
+   echo "Usage: ./coalpsuedo -g genome list -r fastq read file -p prefix -n threads -P atomic intervals -t generation time -u mutation rate"
+   echo -e "\t-g Reference genome fasta file"
+   echo -e "\t-r Text file having Fastq read file names/locations"
+   echo -e "\t-p output prefix"
+   echo -e "\t-n Number of threads to use"
+   echo -e "\t-P Pattern of atomic intervals used for PSMC"
+   echo -e "\t-t Generation time of organism"
+   echo -e "\t-u Mutation rate in per generation per site"
+exit 1
+}
+while getopts ":g:r:p:n:P:t:u:" opt
+do
+case "$opt" in
+g ) fasta="$OPTARG" ;;
+r ) fastqread="$OPTARG" ;;
+p ) prefix="$OPTARG" ;;
+n ) threads="$OPTARG" ;;
+P ) atomic="$OPTARG" ;;
+t ) Time="$OPTARG" ;;
+u ) mutr="$OPTARG" ;;
+? ) helpFunction ;;
+esac
+done
+##Mandatory arguments
+if [[ -z "$fasta" ]] || [[ -z "$fastqread" ]] || [[ -z "$prefix" ]]
+then
+ echo "Please provide all input options";
+ helpFunction
+ echo $fasta
+ echo $fastqread
+ echo $prefix
+fi
+##Optional arguments
+ defn="1"
+ defp="4+25*2+4+6"
+ defg="15"
+ defu="3.75e-08"
+if [ -z "$atomic" ]
+then
+echo "Warning: Input parameter for Atomic interval pattern not defined. Assuming default value of $defp for it."
+atomic=$defp
+fi
+if [ -z "$Time" ]
+then
+echo "Warning: Input parameter generation time not defined. Assuming default value of $defg for it."
+Time=$defg
+fi
+if [ -z "$mutr" ]
+then
+echo "Warning: Input parameter per generation per site mutation rate not defined. Assuming default value of $defu for it."
+mutr=$defu
+fi
+if [ -z "$threads" ]
+then
+echo "Using default value of $defn for it."
+threads=$defn
+fi
+mkdir $prefix
+genlen=`grep -v "^>" $fasta | wc -c`
+Nseqs=`grep -v "^>" $fasta | tr -cd N | wc -c`
+Npercent=`echo $genlen $Nseqs | awk '{print $2/$1*100}'`
+echo "Percent of N's or hardmasked bases is"
+echo $Npercent
+echo "Analysis will be performed by using this fasta file but make sure you are not using haedmasked genome"
+perl -pe '/^[^>]/ and $_=uc' $fasta > $prefix/$prefix.un
+bwa index $prefix/$prefix.un
+samtools faidx $prefix/$prefix.un
+cut -f 1-2 $prefix/$prefix.un.fai | sort -k1,1 -k2n,2 > $prefix/$prefix.un.genome
+echo "Now, mapping the reads to the reference genome"
+while read r
+bname=`echo $r | awk '{print $1}' | sed 's/_1.fq.gz//g' | sed 's/_2.fq.gz//g' | sed 's/.fq.gz//g' | sed 's/_1.fastq.gz//g' | sed 's/_2.fastq.gz//g' | sed 's/.fastq.gz//g'`
+ind=`echo "${bname##*/}"`
+bwa mem -t $threads $prefix/$prefix.un $r > $prefix/$ind.$prefix.sam
+samtools view -@ $threads -bhS $prefix/$ind.$prefix.sam > $prefix/$ind.$prefix.bam
+samtools sort -@ $threads $prefix/$ind.$prefix.bam -o $prefix/$ind.$prefix.sort.bam
+samtools index $prefix/$ind.$prefix.sort.bam
+samtools flagstat $prefix/$ind.$prefix.sort.bam > $prefix/$ind.$prefix.sort.bam.txt
+rm $prefix/$ind.$prefix.sam $prefix/$ind.$prefix.bam
+echo "Mapping finished"
+mapper=`awk 'NR == 5' $prefix/$ind.$prefix.sort.bam.txt | awk '{print $5}' | sed 's/[()]//g'`
+echo "The mapped percentage for this assembly is"
+echo $fasta $ind $mapper
+echo "Now, calculating coverage"
+samtools depth --reference $prefix/$prefix.un $prefix/$ind.$prefix.sort.bam > $prefix/$ind.$prefix.coverage
+awk '{sum += $3} END {print sum / NR}' $prefix/$ind.$prefix.coverage > $prefix/$ind.$prefix.meancov
+meancov=`cat $prefix/$ind.$prefix.meancov`
+echo "The mean coverage of reads is $meancov."
+d=`cat $prefix/$ind.$prefix.meancov|awk '{print $0/3}'`
+D=`cat $prefix/$ind.$prefix.meancov|awk '{print $0*2}'`
+samtools mpileup -C50 -uf $prefix/$prefix.un $prefix/$ind.$prefix.sort.bam | bcftools call --threads $threads -c - | vcfutils.pl vcf2fq -d $d -D $D | gzip > $prefix/$ind.$prefix.fq.gz
+fq2psmcfa $prefix/$ind.$prefix.fq.gz > $prefix/$ind.$prefix.psmcfa
+psmc -d -N25 -r5 -t5 -p $atomic -o $prefix/$ind.$prefix.psmc $prefix/$ind.$prefix.psmcfa
+psmc_plot.pl -R -u $mutr -g $Time $prefix/$ind.$prefix $prefix/$ind.$prefix.psmc
+done < $fastqread
+cd prefix
+for a in *.fq.gz
+do
+y=`echo $a | sed 's/.fq.gz//g'`
+seqtk seq $a > $y.fa
+done
+for a in *.fa
+do
+y=`echo $a | sed 's/.fa//g'`
+for b in *.fa
+do
+x=`echo $b | sed 's/.fa//g'`
+seqtk mergefa -rq20 $a $b > $y.$x.merged.fa
+seqtk seq $y.$x.merged.fa | gzip > $y.$x.merged.fq.gz
+fq2psmcfa $y.$x.merged.fq.gz > $y.$x.merged.psmcfa
+psmc -d -N25 -t5 -r5 -p $atomic -o $y.$x.merged.psmc $y.$x.merged.psmcfa
+psmc_plot.pl -R -u $defu -g $defg $y.$x.merged $y.$x.merged.psmc
+done
+done

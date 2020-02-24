@@ -1,0 +1,115 @@
+#!/bin/bash
+helpFunction()
+{
+   echo ""
+   echo "Usage: coalcov -g genome -b bamfile -p prefix -n threads -P atomic intervals -t generation time -u mutation rate"
+   echo -e "\t-g Genome fasta file"
+   echo -e "\t-b sorted bam file"
+   echo -e "\t-p output prefix"
+   echo -e "\t-n Number of threads to use"
+   echo -e "\t-P Atomic intervals used for the PSMC"
+   echo -e "\t-t Generation time of the organism"
+   echo -e "\t-u Mutation rate of the organism"
+exit 1
+}
+while getopts ":g:b:p:n:P:t:u:" opt
+do
+case "$opt" in
+g ) fasta="$OPTARG" ;;
+b ) bamfile="$OPTARG" ;;
+p ) prefix="$OPTARG" ;;
+n ) threads="$OPTARG" ;;
+P ) atomic="$OPTARG" ;;
+t ) Time="$OPTARG" ;;
+u ) mutr="$OPTARG" ;;
+? ) helpFunction ;;
+esac
+done
+##Mandatory arguments
+if [[ -z "$fasta" ]] || [[ -z "$bamfile" ]] || [[ -z "$prefix" ]]
+then
+ echo "Please provide all input options";
+ helpFunction
+ echo $fasta
+ echo $bamfile
+ echo $prefix
+fi
+##Optional arguments
+defn="1"
+defp="4+25*2+4+6"
+defg="15"
+defu="3.75e-08"
+if [ -z "$threads" ]
+then
+echo "Using default value of $defn for it."
+threads=$defn
+fi
+if [ -z "$atomic" ]
+then
+echo "Warning: Input parameter for Atomic interval pattern not defined. Assuming default value of $defp for it."
+atomic=$defp
+fi
+if [ -z "$Time" ]
+then
+echo "Warning: Input parameter generation time not defined. Assuming default value of $defg for it."
+Time=$defg
+fi
+if [ -z "$mutr" ]
+then
+echo "Warning: Input parameter per generation per site mutation rate not defined. Assuming default value of $defu for it."
+mutr=$defu
+fi
+mkdir $prefix
+mkdir $prefix/covclass
+genlen=`grep -v "^>" $fasta | wc -c`
+Nseqs=`grep -v "^>" $fasta | tr -cd N | wc -c`
+Npercent=`echo $genlen $Nseqs | awk '{print $2/$1*100}'`
+echo "Percent of N's or hardmasked bases is"
+echo $Npercent
+echo "Analysis will be performed by using this fasta file but make sure you are not using hardmasked genome"
+perl -pe '/^[^>]/ and $_=uc' $fasta > $prefix/$prefix.un
+bwa index $prefix/$prefix.un
+samtools faidx $prefix/$prefix.un
+cut -f 1-2 $prefix/$prefix.un.fai | sort -k1,1 -k2n,2 > $prefix/$prefix.un.genome
+bname=`echo $bamfile | sed 's/.sort.bam//g' | sed 's/.bam//g'`
+ind=`echo "${bname##*/}"`
+samtools depth --reference $prefix/$prefix.un $bamfile > $prefix/$ind.$prefix.coverage
+cd $prefix
+for a in $ind.$prefix.coverage
+do
+cat $a | awk '{ if ($3 > 0){print $0,"GR0"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR0.cov
+cat $a | awk '{ if ($3 > 10) {print $0,"GR10"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR10.cov
+cat $a | awk '{ if ($3 > 20) {print $0,"GR20"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR20.cov
+cat $a | awk '{ if ($3 > 30) {print $0,"GR30"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR30.cov
+cat $a | awk '{ if ($3 > 40) {print $0,"GR40"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR40.cov
+cat $a | awk '{ if ($3 > 50) {print $0,"GR50"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR50.cov
+cat $a | awk '{ if ($3 > 60) {print $0,"GR60"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR60.cov
+cat $a | awk '{ if ($3 > 70) {print $0,"GR70"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR70.cov
+cat $a | awk '{ if ($3 > 80) {print $0,"GR80"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR80.cov
+cat $a | awk '{ if ($3 > 90) {print $0,"GR90"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR90.cov
+cat $a | awk '{ if ($3 > 100) {print $0,"GR100"}}' | sed 's/ /\t/g' > covclass/$ind.$prefix.GR100.cov
+done
+cd covclass
+for a in *.cov
+do
+cat $a | awk '{print $1,$2,$2,$3,$4}' | sed 's/ /\t/g' | bedtools merge -i stdin -c 5 -o distinct > $a.bed
+done
+cut -f 1-2 ../$prefix.un.fai | awk '{print $1,$2+1}' | sed 's/ /\t/g' |  sort -k1,1 -k2n,2 > ../$prefix.un.lengths
+for a in *.cov.bed
+do
+sort -k1,1 -k2n,2 $a > $a.tmp
+done
+for a in *.tmp
+do
+y=`echo $a | sed 's/.cov.bed.tmp//g'`
+bedtools complement -i $a -g ../$prefix.un.lengths > $y.pos
+bedtools maskfasta -fi ../$prefix.un -bed $y.pos -fo $y.masked.fa
+samtools faidx $y.masked.fa
+cat ../$ind.$prefix.coverage | awk '{s += $3}END{print s/NR}' > ../$ind.$prefix.meancov
+d=`cat ../$ind.$prefix.meancov | awk '{print $0/3}'`
+D=`cat ../$ind.$prefix.meancov |awk '{print $0*2}'`
+samtools mpileup -C50 -uf $y.masked.fa ../../$bamfile | bcftools call --threads $threads -c - | vcfutils.pl vcf2fq -d $d -D $D | gzip > $y.masked.fq.gz
+fq2psmcfa $y.masked.fq.gz > $y.masked.psmcfa
+psmc -d -N25 -t5 -r5 -p $atomic -o $y.masked.psmc $y.masked.psmcfa
+psmc_plot.pl -R -u $mutr -g $Time $y.masked $y.masked.psmc
+done

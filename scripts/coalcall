@@ -1,0 +1,99 @@
+#!/bin/bash
+helpFunction()
+{
+   echo ""
+   echo "Usage: coalcall -g genome -b bamfile -p prefix -n threads -c callability bed -P atomic intervals -t generation time -u mutation rate"
+   echo -e "\t-g Genome fasta file"
+   echo -e "\t-b sorted bam file"
+   echo -e "\t-p output prefix"
+   echo -e "\t-n Number of threads to use"
+   echo -e "\t-c Bed file of callability classes and their co-ordinates"
+   echo -e "\t-P Atomic intervals used for the PSMC"
+   echo -e "\t-t Generation time of the organism"
+   echo -e "\t-u Mutation rate of the organism"
+exit 1
+}
+while getopts ":g:b:p:n:c:P:t:u:" opt
+do
+case "$opt" in
+g ) fasta="$OPTARG" ;;
+b ) bamfile="$OPTARG" ;;
+p ) prefix="$OPTARG" ;;
+n ) threads="$OPTARG" ;;
+c ) callbed="$OPTARG" ;;
+P ) atomic="$OPTARG" ;;
+t ) Time="$OPTARG" ;;
+u ) mutr="$OPTARG" ;;
+? ) helpFunction ;;
+esac
+done
+##Mandatory arguments
+if [[ -z "$fasta" ]] || [[ -z "$bamfile" ]] || [[ -z "$prefix" ]] || [[ -z "$callbed" ]]
+then
+ echo "Please provide all input options";
+ helpFunction
+ echo $fasta
+ echo $bamfile
+ echo $prefix
+ echo $callbed
+fi
+##Optional arguments
+defn="1"
+defp="4+25*2+4+6"
+defg="15"
+defu="3.75e-08"
+if [ -z "$threads" ]
+then
+echo "Using default value of $defn for it."
+threads=$defn
+fi
+if [ -z "$atomic" ]
+then
+echo "Warning: Input parameter for Atomic interval pattern not defined. Assuming default value of $defp for it."
+atomic=$defp
+fi
+if [ -z "$Time" ]
+then
+echo "Warning: Input parameter generation time not defined. Assuming default value of $defg for it."
+Time=$defg
+fi
+if [ -z "$mutr" ]
+then
+echo "Warning: Input parameter per generation per site mutation rate not defined. Assuming default value of $defu for it."
+mutr=$defu
+fi
+mkdir $prefix
+mkdir $prefix/callclass
+genlen=`grep -v "^>" $fasta | wc -c`
+Nseqs=`grep -v "^>" $fasta | tr -cd N | wc -c`
+Npercent=`echo $genlen $Nseqs | awk '{print $2/$1*100}'`
+echo "Percent of N's or hardmasked bases is"
+echo $Npercent
+echo "Analysis will be performed by using this fasta file but make sure you are not using hardmasked genome"
+perl -pe '/^[^>]/ and $_=uc' $fasta > $prefix/$prefix.un
+bwa index $prefix/$prefix.un
+samtools faidx $prefix/$prefix.un
+cut -f 1-2 $prefix/$prefix.un.fai | sort -k1,1 -k2n,2 > $prefix/$prefix.un.genome
+bname=`echo $bamfile | sed 's/.sort.bam//g' | sed 's/.bam//g'`
+ind=`echo "${bname##*/}"`
+samtools depth --reference $prefix/$prefix.un $bamfile > $prefix/$ind.$prefix.coverage
+awk '{sum +=$3}END{print sum/NR}' $prefix/$ind.$prefix.coverage > $prefix/$ind.$prefix.meancov
+d=`cat $prefix/$ind.$prefix.meancov|awk '{print $0/3}'`
+D=`cat $prefix/$ind.$prefix.meancov|awk '{print $0*2}'`
+samtools mpileup -C50 -uf $prefix/$prefix.un $bamfile | bcftools call --threads $threads -c | vcfutils.pl vcf2fq -d $d -D $D | gzip > $prefix/$ind.$prefix.fq.gz
+fq2psmcfa $prefix/$ind.$prefix.fq.gz > $prefix/$ind.$prefix.psmcfa
+psmc -d -N25 -t5 -r5 -p $atomic -o $prefix/$ind.$prefix.psmc $prefix/$ind.$prefix.psmcfa
+psmc_plot.pl -R -u $mutr -g $Time $prefix/$ind.$prefix $prefix/$ind.$prefix.psmc
+cd $prefix/callclass
+awk '{ print >$4".bed" }' ../../$callbed
+awk '{print $1,$2,$3}' ../../$callbed | sed 's/ /\t/g' | bedtools intersect -a stdin -b CALLABLE.bed -v | awk '{print $0,"Non_callable"}' | sed 's/ /\t/g' > NON_CALLABLE.bed
+for a in *.bed
+do
+b=`echo $a | sed 's/.bed//g'`
+bedtools maskfasta -fi ../$prefix.un -bed $a -fo $b.masked.fa
+samtools faidx $b.masked.fa
+samtools mpileup -C50 -uf $b.masked.fa ../../$bamfile | bcftools call --threads $threads -c | vcfutils.pl vcf2fq -d $d -D $D | gzip > $b.fq.gz
+fq2psmcfa $b.fq.gz > $b.psmcfa
+psmc -d -N25 -t5 -r5 -p $atomic -o $b.psmc $b.psmcfa
+psmc_plot.pl -R -u $mutr -g $Time $b $b.psmc
+done

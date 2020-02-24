@@ -1,0 +1,25 @@
+#Script for plotting Number of recombinations across all the atomic intervals 
+#Written By: Ajinkya Bharatraj Patil.
+
+#######################################################################################################################################
+################################### Plotting No. of recombinations across Atomic Intervals ############################################
+#######################################################################################################################################
+pt_un_s20 <- read.table("../pt.un.s20.0.txt")
+nrec_s20 = list.files("..",pattern=".nrec",full.names=TRUE)
+
+for (i in nrec_s20){
+read.table(file=i,header=FALSE)-> M
+gsub("nrec", "nrcomb",i)-> N
+j <- sapply(strsplit(N, "[/]"), `[`,2)
+ai<-length(pt_un_s20$V1)
+length(M$V1)/ai->itercount
+t(matrix(M$V1,nrow = ai,ncol = itercount))->N
+pdf(paste("coalrep_Figure_S1D_",j,"_RecQC.pdf",sep=""),width=15,height=20)
+par(mfrow=c(4,4))
+for(itK in c(1:ai)){
+barplot(N[,itK],names.arg=c(0:25),main=itK,ylab="No.of recombinations",xlab="No .of iteration",font.lab=2,cex.lab=1.2,cex.main=1.5)
+abline(h=10,col="red",lwd=2)
+box()
+}
+dev.off()
+}

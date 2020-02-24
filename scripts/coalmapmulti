@@ -1,0 +1,79 @@
+#!/bin/bash
+helpFunction()
+{
+   echo ""
+   echo "Usage: coalmapmulti -g genome list -r fastq read file -p prefix -n threads"
+   echo -e "\t-g Text file having genome fasta file names/locations"
+   echo -e "\t-r Text file having Fastq read file names/locations"
+   echo -e "\t-p output prefix"
+   echo -e "\t-n Number of threads to use"
+exit 1
+}
+while getopts ":g:r:p:n:" opt
+do
+case "$opt" in
+g ) fasta="$OPTARG" ;;
+r ) fastqread="$OPTARG" ;;
+p ) prefix="$OPTARG" ;;
+n ) threads="$OPTARG" ;;
+? ) helpFunction ;;
+esac
+done
+##Mandatory arguments
+if [[ -z "$fasta" ]] || [[ -z "$fastqread" ]] || [[ -z "$prefix" ]]
+then
+ echo "Please provide all input options";
+ helpFunction
+ echo $fasta
+ echo $fastqread
+ echo $prefix
+fi
+##Optional arguments
+defn="1"
+if [ -z "$threads" ]
+then
+echo "No. of threads not assigned, using default value of $defn for it."
+threads=$defn
+fi
+mkdir $prefix
+awk '{print $0, NR}' $fasta > $prefix/$prefix.fasta_names.txt
+while read f
+do
+genlen=`grep -v "^>" $f | wc -c`
+Nseqs=`grep -v "^>" $f | tr -cd N | wc -c`
+Npercent=`echo $genlen $Nseqs | awk '{print $2/$1*100}'`
+echo "Percent of N's or hardmasked bases is $Npercent"
+echo "Analysis will be performed by using this fasta file but make sure you are not using hardmasked genome."
+fn=`cat $prefix/$prefix_fasta_names.txt | grep "$f" | cut -f2`
+mkdir $prefix/$fn
+perl -pe '/^[^>]/ and $_=uc' $f > $prefix/$fn/$fn.un
+bwa index $prefix/$fn/$fn.un
+samtools faidx $prefix/$fn/$fn.un
+cut -f 1-2 $prefix/$fn/$fn.un.fai | sort -k1,1 -k2n,2 > $prefix/$fn/$fn.un.genome
+echo "Now, mapping the reads to the reference genome."
+cat $fast1read | while read r
+bname=`echo $r | awk '{print $1}' | sed 's/_1.fq.gz//g' | sed 's/_2.fq.gz//g' | sed 's/.fq.gz//g' | sed 's/_1.fastq.gz//g' | sed 's/_2.fastq.gz//g' | sed 's/.fastq.gz//g'`
+ind=`echo "${bname##*/}"`
+mkdir $prefix/$fn/$ind
+bwa mem -t $threads $prefix/$fn/$fn.un $r > $prefix/$fn/$ind/$ind.$fn.sam
+samtools view -@ $threads -bhS $prefix/$fn/$ind/$ind.$fn.sam > $prefix/$fn/$ind/$ind.$fn.bam
+samtools sort -@ $threads $prefix/$fn/$ind/$ind.$fn.bam -o $prefix/$fn/$ind/$ind.$fn.sort.bam
+samtools index $prefix/$fn/$ind/$ind.$fn.sort.bam
+samtools flagstat $prefix/$fn/$ind/$ind.$fn.sort.bam > $prefix/$fn/$ind/$ind.$fn.sort.bam.txt
+rm $prefix/$fn/$ind/$ind.$fn.sam $prefix/$fn/$ind/$ind.$fn.bam
+echo "Mapping finished"
+mapper=`awk 'NR == 5' $prefix/$fn/$ind/$ind.$fn.sort.bam.txt | awk '{print $5}' | sed 's/[()]//g'`
+echo "The mapped percentage for this assembly is "
+echo "$fasta $mapper" 
+echo "Now, calculating coverage"
+samtools depth --reference $prefix/$fn/$fn.un $prefix/$fn/$ind/$ind.$fn.sort.bam > $prefix/$fn/$ind/$ind.$fn.coverage
+awk '{sum += $3} END {print sum / NR}' $prefix/$fn/$ind/$ind.$fn.coverage > $prefix/$fn/$ind/$ind.$fn.meancov
+meancov=`cat $prefix/$fn/$ind/$ind.$fn.meancov`
+echo "The mean coverage of reads is $meancov"
+done
+done < $fasta
+## fastq read input file should have one paired end / single end read file name with location, each run per line.
+## for example: 
+## SRR000334.fastq.gz
+## SRR000335_1.fastq.gz SRR000335_2.fastq.gz
+## fasta file should have names and locations of all fasta file one per line

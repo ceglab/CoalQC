@@ -1,0 +1,29 @@
+#Script for plotting sequence legth distribution across atomic intervals of PSMC
+#Written By: Ajinkya Bharatraj Patil.
+
+#######################################################################################################################################
+############################### Plotting Lengths of sequences across Atomic Intervals #################################################
+#######################################################################################################################################
+rlen_s20 = list.files("..",pattern=".lengths",full.names=TRUE)
+rlen_repclass = list.files("../repclass",pattern=".lengths",full.names=TRUE)
+for (i in rlen_s20){
+read.table(file=i,header=FALSE)-> M
+gsub("lengths", "RepLength",i)-> N
+j <- sapply(strsplit(N, "[/]"), `[`,2)
+
+pdf(paste(j,"_coalrep_s20.pdf",sep=""),width=15,height=20)
+boxplot(M$V2~M$V1,log="y",main=j,xlab="Atomic Intervals",ylab="log(Lengths)",font.lab=2,cex.lab=1.2,cex.main=1.5)
+box()
+}
+dev.off()
+
+pdf("coalrep_Figure_S1C_RepLength_repclass.pdf",width=15,height=20)
+par(mfrow=c(2,2))
+for (i in rlen_repclass){
+read.table(file=i,header=FALSE)-> M
+repc <- sapply(strsplit(sapply(strsplit(i,"[/]"), `[`, 3), "[.]"), `[`,1)
+boxplot(M$V2~M$V1,log="y",main=repc,xlab="Atomic Intervals",ylab="log(Lengths)",font.lab=2,cex.lab=1.2,cex.main=1.5)
+box()
+}
+dev.off()
+

@@ -1,0 +1,29 @@
+#script for plotting Repeat class PSMC
+#Written By : Ajinkya Bharatraj Patil
+#!/usr/bin/env Rscript
+args = commandArgs(trailingOnly=TRUE)
+args[1]  <- "pt"
+mu <- 2.75e-08
+gen <- 15
+pt_hm_s100 <- read.table(paste("../",args[1],".hm.s100.0.txt",sep=""))
+pt_un_s100 <- read.table(paste("../",args[1],".un.s100.0.txt",sep=""))
+
+#######################################################################################################################################
+############################################ Plotting repeat class PSMC ###############################################################
+#######################################################################################################################################
+rep_col <- c("plum1","hotpink","darkolivegreen","peru","olivedrab1","orange2","darkseagreen1","palevioletred1","navy","khaki","gray50","cornflowerblue","yellowgreen","chartreuse4","cadetblue4","burlywood4","brown4","blueviolet","bisque4","aquamarine1","aquamarine3","aquamarine4","azure3","azure4","brown3","burlywood3","cadetblue2","chartreuse1","chocolate2","coral","coral2","coral3","coral4","cornsilk4","cyan3","cyan4","darkblue","darkgoldenrod","darkgoldenrod2","darkgoldenrod4","darkmagenta")
+colcount <- 0
+rep = list.files("../repclass",pattern=".0.txt",full.names=TRUE)
+repclass <- sapply(strsplit(sapply(strsplit(sapply(strsplit(rep,"[/]"), `[`, 3), "[.]",1), `[`,1),"[.]"), `[`,1)
+pdf(paste("coalrep_Figure_1B_",args[1],"_repclass_PSMC_s100.pdf",sep=""),height=10,width=20)
+plot(pt_un_s100$V1,(pt_un_s100$V2*10000),log="x",ylim=c(0,max(pt_un_s100$V2*10000)*1.5),type="n", xlab="Years ago", ylab="effective population size",main="Effect of repeat on PSMC s100")
+for (i in rep){
+colcount <- colcount+1
+read.table(file=i,header=FALSE)-> repc
+lines(repc$V1,(repc$V2*10000),type="s",col=rep_col[colcount],lwd=2)
+}
+lines(pt_un_s100$V1,(pt_un_s100$V2*10000),type="s",col="orangered",lwd=2)
+lines(pt_hm_s100$V1,(pt_hm_s100$V2*10000),type="s",col="blue",lwd=2)
+legend("top",legend=repclass,fill=rep_col,ncol = 5,cex=1.75)
+legend("bottomleft",legend=c("Unmasked","Masked"),fill=c("orangered","blue"),cex=1.5)
+dev.off()

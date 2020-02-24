@@ -1,0 +1,52 @@
+#Script for plotting Repeat effect of PSMC for bin sizes s20, s50 and s100
+#Written By: Ajinkya Bharatraj Patil.
+#!/usr/bin/env Rscript
+args = commandArgs(trailingOnly=TRUE)
+args[1] <- "pt"
+mu <- 2.75e-08
+gen <- 15
+pt_hm_s20 <- read.table(paste("../",args[1],".hm.s20.0.txt",sep=""))
+pt_hm_s50 <- read.table(paste("../",args[1],".hm.s50.0.txt",sep=""))
+pt_hm_s100 <- read.table(paste("../",args[1],".hm.s100.0.txt",sep=""))
+pt_un_s20 <- read.table(paste("../",args[1],".un.s20.0.txt",sep=""))
+pt_un_s50 <- read.table(paste("../",args[1],".un.s50.0.txt",sep=""))
+pt_un_s100 <- read.table(paste("../",args[1],".un.s100.0.txt",sep=""))
+msmc_hm <- read.table(paste("../",args[1],".hm.final.txt",sep=""),header=T)
+msmc_un <- read.table(paste("../",args[1],".un.final.txt",sep=""),header=T)
+hz_un_s100 <- read.table(paste("../",args[1],".un.s100.hetcount",sep="")) 
+hz_hm_s100 <- read.table(paste("../",args[1],".hm.s100.hetcount",sep=""))
+hz_un_s50 <- read.table(paste("../",args[1],".un.s50.hetcount",sep=""))
+hz_hm_s50 <- read.table(paste("../",args[1],".hm.s50.hetcount",sep=""))
+hz_un_s20 <- read.table(paste("../",args[1],".un.s20.hetcount",sep=""))
+hz_hm_s20 <- read.table(paste("../",args[1],".hm.s20.hetcount",sep=""))
+
+
+pdf(paste("coalrep_Figure_S1A_",args[1],"_repeat_effect_s100.pdf",sep=""),height=10,width=20)
+plot(pt_un_s100$V1,(pt_un_s100$V2*10000),log="x",ylim=c(0,60000),type="n", xlab="Years ago", ylab="effective population size",main="Effect of repeat on PSMC (s100)")
+lines(pt_hm_s100$V1,(pt_hm_s100$V2*10000),type="s",col="blue",lwd=2)
+lines(pt_un_s100$V1,(pt_un_s100$V2*10000),type="s",col="orangered",lwd=2)
+lines(msmc_hm$left_time_boundary/mu*gen,(1/msmc_hm$lambda_00)/(2*mu),type="s",col="skyblue",lwd=2)
+lines(msmc_un$left_time_boundary/mu*gen,(1/msmc_un$lambda_00)/(2*mu),type="s",col="red",lwd=2)
+points(pt_un_s100$V1,(pt_un_s100$V2*10000),col="black",pch=20,cex=c(hz_un_s100$V4/10))
+legend("topleft",legend=c("PSMC Masked","PSMC Unmasked","MSMC Unmasked","MSMC Masked"),col=c("blue","orangered","red","skyblue"),lwd=3)
+dev.off()
+
+pdf(paste("coalrep_Figure_S1A_",args[1],"_repeat_effect_s50.pdf",sep=""),height=10,width=20)
+plot(pt_un_s50$V1,(pt_un_s50$V2*10000),log="x",ylim=c(0,60000),type="n", xlab="Years ago", ylab="effective population size",main="Effect of repeat on PSMC (s50)")
+lines(pt_hm_s50$V1,(pt_hm_s50$V2*10000),type="s",col="blue",lwd=2)
+lines(pt_un_s50$V1,(pt_un_s50$V2*10000),type="s",col="orangered",lwd=2)
+lines(msmc_hm$left_time_boundary/mu*gen,(1/msmc_hm$lambda_00)/(2*mu),type="s",col="skyblue",lwd=2)
+lines(msmc_un$left_time_boundary/mu*gen,(1/msmc_un$lambda_00)/(2*mu),type="s",col="red",lwd=2)
+points(pt_un_s50$V1,(pt_un_s50$V2*10000),col="black",pch=20,cex=c(hz_un_s50$V4/10))
+legend("topleft",legend=c("PSMC Masked","PSMC Unmasked","MSMC Unmasked","MSMC Masked"),col=c("blue","orangered","red","skyblue"),lwd=3)
+dev.off()
+
+pdf(paste("coalrep_Figure_1A_",args[1],"_repeat_effect_s20.pdf",sep=""),height=10,width=20)
+plot(pt_un_s20$V1,(pt_un_s20$V2*10000),log="x",ylim=c(0,60000),type="n", xlab="Years ago", ylab="effective population size",main="Effect of repeat on PSMC (s20)")
+lines(pt_hm_s20$V1,(pt_hm_s20$V2*10000),type="s",col="blue",lwd=2)
+lines(pt_un_s20$V1,(pt_un_s20$V2*10000),type="s",col="orangered",lwd=2)
+lines(msmc_hm$left_time_boundary/mu*gen,(1/msmc_hm$lambda_00)/(2*mu),type="s",col="skyblue",lwd=2)
+lines(msmc_un$left_time_boundary/mu*gen,(1/msmc_un$lambda_00)/(2*mu),type="s",col="red",lwd=2)
+points(pt_un_s20$V1,(pt_un_s20$V2*10000),col="black",pch=20,cex=c(hz_un_s20$V4/10))
+legend("topleft",legend=c("PSMC Masked","PSMC Unmasked","MSMC Unmasked","MSMC Masked"),col=c("blue","orangered","red","skyblue"),lwd=3)
+dev.off()

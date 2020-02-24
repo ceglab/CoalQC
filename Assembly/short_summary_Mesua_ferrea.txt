@@ -1,0 +1,15 @@
+# BUSCO version is: 3.1.0 
+# The lineage dataset is: eudicotyledons_odb10 (Creation date: 2017-12-01, number of species: 40, number of BUSCOs: 2121)
+# To reproduce this run: python scripts/run_BUSCO.py -i /home/ceglab25/ajs/MaSuRCA-3.3.1/iw/SOAP_assembly/asm2.scafSeq2 -o asm2.scafSeq2_eudi -l eudicotyledons_odb10/ -m genome -c 4 -sp arabidopsis
+#
+# Summarized benchmarking in BUSCO notation for file /home/ceglab25/ajs/MaSuRCA-3.3.1/iw/SOAP_assembly/asm2.scafSeq2
+# BUSCO was run in mode: genome
+
+	C:94.2%[S:77.0%,D:17.2%],F:1.5%,M:4.3%,n:2121
+
+	1997	Complete BUSCOs (C)
+	1633	Complete and single-copy BUSCOs (S)
+	364	Complete and duplicated BUSCOs (D)
+	31	Fragmented BUSCOs (F)
+	93	Missing BUSCOs (M)
+	2121	Total BUSCO groups searched
