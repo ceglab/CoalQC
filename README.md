@@ -4,15 +4,15 @@
 <h2> Setting Up the Environment for running the wrapper and scripts. </h2>
 Follow these steps: 
   
-<pre><code> cd coalqc </pre></code>
+<pre><code> cd coalqc/scripts </pre></code>
 
 <pre><code> pwd </pre></code>
 
-copy the path where all the scripts are present and use export path to "coalpath" to save in your working environment. i.e. path which you will obtain after executing pwd in your coalqc folder.
+copy the path where all the scripts are present and use export path to "coalpath" to save in your working environment. i.e. path which you will obtain after executing pwd in your coalqc/scripts folder.
 
 <pre><code> export coalpath={paste the path here} </pre></code>
 
-Now, you have setup the environment for the scripts, you can execute coalqc from anywhere on your computer.
+Now, you have setup the environment for the scripts. Add the location of the coalqc folder to your PATH variable, you can then execute coalqc from anywhere on your computer.
 
 <h2>Step 1: Preparing the bam alignment file.</h2>
 <p>Prior to assessing the quality of genomic regions for performing coalescent analysis, we need to prepare an alignment of the short read data against a reference genome in the bam format. While this can be done using a short-read alignment program of your choice, we recommend using the coalmap command that uses the bwa read mapper to perform the read mapping. The following programs need to be installed and present in the PATH: bwa, samtools</p>
